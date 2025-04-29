@@ -11,7 +11,13 @@ class ScreenshotApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Screenshot Documentation Tool")
-        self.root.geometry("400x300")
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        window_width = 400
+        window_height = 300
+        position_x = int(((screen_width // 2) - (window_width // 2)) * 2)
+        position_y = int(((screen_height // 2) - (window_height // 2)) * 2)
+        self.root.geometry(f"{window_width}x{window_height}+{position_x}+{position_y}")
 
         # Initialize variables
         self.is_capturing = False
