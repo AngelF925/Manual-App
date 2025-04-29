@@ -1,6 +1,6 @@
 import os
 from tkinter import filedialog
-from PIL import ImageGrab
+from PIL import ImageGrab, Image, ImageTk
 from fpdf import FPDF
 import customtkinter as ctk
 from pathlib import Path
@@ -22,6 +22,7 @@ class ScreenshotApp:
         # Initialize variables
         self.is_capturing = False
         self.screenshots = []
+        self.selected_screenshots = []
         self.listener = None
         self.current_keys = set()  # Track currently pressed keys
 
@@ -36,6 +37,9 @@ class ScreenshotApp:
         self.stop_button = ctk.CTkButton(root, text="Stop Capturing", command=self.stop_capturing, state="disabled")
         self.stop_button.pack(pady=20)
 
+        self.preview_button = ctk.CTkButton(root, text="Preview Screenshots", command=self.preview_screenshots, state="disabled")
+        self.preview_button.pack(pady=20)
+
         self.export_button = ctk.CTkButton(root, text="Export to PDF", command=self.export_to_pdf, state="disabled")
         self.export_button.pack(pady=20)
 
@@ -46,6 +50,7 @@ class ScreenshotApp:
         self.is_capturing = True
         self.start_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
+        self.preview_button.configure(state="disabled")
         self.export_button.configure(state="disabled")
         self.status_label.configure(text="Status: Capturing...")
         self.start_keyboard_listener()
@@ -54,6 +59,7 @@ class ScreenshotApp:
         self.is_capturing = False
         self.start_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
+        self.preview_button.configure(state="normal")
         self.export_button.configure(state="normal")
         self.status_label.configure(text="Status: Stopped")
         self.stop_keyboard_listener()
@@ -99,23 +105,57 @@ class ScreenshotApp:
             self.listener.stop()
             self.listener = None
 
+    def preview_screenshots(self):
+        # Create a new window for the preview using customtkinter
+        preview_window = ctk.CTkToplevel(self.root)
+        preview_window.title("Preview Screenshots")
+        preview_window.geometry("800x600")
+
+        # Display each screenshot with a delete button
+        for i, screenshot_path in enumerate(self.screenshots):
+            img = Image.open(screenshot_path)
+            img.thumbnail((150, 150))  # Resize for thumbnail view
+            img = ImageTk.PhotoImage(img)
+
+            img_label = ctk.CTkLabel(preview_window, image=img, text="")
+            img_label.image = img  # Keep a reference to avoid garbage collection
+            img_label.grid(row=i // 4, column=(i % 4) * 2, padx=10, pady=10)
+
+            delete_button = ctk.CTkButton(preview_window, text="Delete", command=lambda path=screenshot_path: self.delete_screenshot(path))
+            delete_button.grid(row=i // 4, column=(i % 4) * 2 + 1, padx=10, pady=10)
+
+        # Confirm selection button
+        confirm_button = ctk.CTkButton(preview_window, text="Confirm Selection", command=lambda: self.finalize_selection(preview_window))
+        confirm_button.pack(pady=20)
+
+    def delete_screenshot(self, screenshot_path):
+        # Remove screenshot from list and delete the file
+        if screenshot_path in self.screenshots:
+            self.screenshots.remove(screenshot_path)
+            os.remove(screenshot_path)
+            self.status_label.configure(text=f"Deleted: {screenshot_path.name}", text_color="orange")
+
+    def finalize_selection(self, preview_window):
+        # Save the final selection and close the preview
+        self.selected_screenshots = self.screenshots.copy()
+        preview_window.destroy()
+        self.status_label.configure(text="Selection finalized", text_color="green")
+
     def export_to_pdf(self):
-        if not self.screenshots:
+        if not self.selected_screenshots:
             self.status_label.configure(text="No screenshots to export!", text_color="red")
             return
 
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
 
-        for i, screenshot_path in enumerate(self.screenshots, start=1):
+        for i, screenshot_path in enumerate(self.selected_screenshots, start=1):
             pdf.add_page()
             pdf.set_font("Arial", size=12)
             pdf.cell(200, 10, txt=f"Step {i}", ln=True, align="C")
             pdf.image(str(screenshot_path), x=10, y=20, w=190)
-        
-        save_path = filedialog.asksaveasfilename(defaultextension=".pdf",
-                                                 filetypes=[("PDF files", "*.pdf")],
-                                                 title="Save PDF")
+
+        save_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF files", "*.pdf")], title="Save PDF")
         if save_path:
             pdf.output(save_path)
             self.status_label.configure(text="PDF Exported Successfully!", text_color="green")
