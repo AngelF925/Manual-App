@@ -142,14 +142,16 @@ class ScreenshotApp:
         self.status_label.configure(text="Selection finalized", text_color="green")
 
     def export_to_pdf(self):
-        if not self.selected_screenshots:
+        screenshots_to_export = self.selected_screenshots or self.screenshots
+        if not screenshots_to_export:
             self.status_label.configure(text="No screenshots to export!", text_color="red")
             return
+
 
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
 
-        for i, screenshot_path in enumerate(self.selected_screenshots, start=1):
+        for i, screenshot_path in enumerate(screenshots_to_export, start=1):
             pdf.add_page()
             pdf.set_font("Arial", size=12)
             pdf.cell(200, 10, txt=f"Step {i}", ln=True, align="C")
